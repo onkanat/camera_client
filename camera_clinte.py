@@ -149,51 +149,20 @@ def creat_main_window():
 
             update_frame()
 
+        def on_ocr_button_click():
+            ocr_text_detection(url)
+
         watch_button = tk.Button(watch_window, text="Watch Stream", width=15, command=on_watch_button_click)
         watch_button.pack(pady=20)
+
+        ocr_button = tk.Button(watch_window, text="OCR Text Detection", width=20, command=on_ocr_button_click)
+        ocr_button.pack(pady=20)
 
         watch_label = tk.Label(watch_window, text="")
         watch_label.pack(pady=20)
 
-    def on_ocr_button_click():
-        def on_select(event):
-            selected_url = url_var.get()
-            url_entry.delete(0, tk.END)
-            url_entry.insert(0, selected_url)
-
-        dialog = tk.Toplevel(root)
-        dialog.title("Input")
-        dialog.geometry("300x200")
-
-        tk.Label(dialog, text="Enter the camera URL:").pack(pady=5)
-        
-        url_var = tk.StringVar()
-        url_entry = tk.Entry(dialog, textvariable=url_var, width=40)
-        url_entry.pack(pady=5)
-
-        if tested_urls:
-            tk.Label(dialog, text="Previously tested URLs:").pack(pady=5)
-            url_dropdown = tk.OptionMenu(dialog, url_var, *tested_urls, command=on_select)
-            url_dropdown.pack(pady=5)
-
-        def on_ok():
-            dialog.destroy()
-            url = url_var.get()
-            if url:
-                ocr_text_detection(url)
-
-        ok_button = tk.Button(dialog, text="OK", width=10, command=on_ok)
-        ok_button.pack(pady=20)
-
-        dialog.transient(root)
-        dialog.grab_set()
-        root.wait_window(dialog)
-
     test_button = tk.Button(root, text="Test Camera", width=15, command=on_test_button_click)
     test_button.pack(pady=20)
-
-    ocr_button = tk.Button(root, text="OCR Text Detection", width=20, command=on_ocr_button_click)
-    ocr_button.pack(pady=20)
 
     result_label = tk.Label(root, text="")
     result_label.pack(pady=20)
