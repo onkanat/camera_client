@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import tkinter as tk
 from tkinter import simpledialog, messagebox
+from PIL import Image, ImageTk
 import pytesseract
 import threading
 
@@ -18,7 +19,7 @@ ocr_text_buffer = [] # max buffer size = 100
 ocr_text_alarm_words = ["599:","home theater", "smoke", "danger", "alert", "warning", "hazard", "emergency"]
 
 # Test for camera  stream from URL://localhost:8080/video_feed
-def search_html_stream(url):
+def search_html_stream(url, canvas, root):
     # Create a VideoCapture object
     cap = cv2.VideoCapture(url)
     
@@ -27,25 +28,23 @@ def search_html_stream(url):
         print("Unable to read camera feed")
         return False
     
-    # Default resolutions of the frame are obtained
-    frame_width = int(cap.get(3))
-    frame_height = int(cap.get(4))
-     
-    # Define the codec and create VideoWriter object
-    out = cv2.VideoWriter('outpy.avi', 
-                         cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 
-                         10, 
-                         (frame_width, frame_height))
-    
     frame_count = 0
     try:
         while frame_count < 25:
             ret, frame = cap.read()
             if not ret or frame is None:
                 break
-                
-            out.write(frame)
-            cv2.imshow('Test url frame', frame)
+
+            # Convert the frame to RGB
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Convert the frame to a PIL image
+            img = Image.fromarray(frame)
+            # Convert the PIL image to an ImageTk image
+            imgtk = ImageTk.PhotoImage(image=img)
+            # Update the canvas with the new image
+            canvas.create_image(0, 0, anchor=tk.NW, image=imgtk)
+            root.update_idletasks()
+            root.update()
             frame_count += 1
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -55,11 +54,9 @@ def search_html_stream(url):
     finally:
         # Clean up resources
         cap.release()
-        out.release()
-        cv2.destroyAllWindows()
 
 # Watch the camera stream from URL://localhost:8080/video_feed
-def html_stream(url):
+def html_stream(url, canvas, root):
     # Create a VideoCapture object
     cap = cv2.VideoCapture(url)
     
@@ -73,8 +70,17 @@ def html_stream(url):
             ret, frame = cap.read()
             if not ret or frame is None:
                 break
-            
-            cv2.imshow('Test url frame', frame)
+
+            # Convert the frame to RGB
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Convert the frame to a PIL image
+            img = Image.fromarray(frame)
+            # Convert the PIL image to an ImageTk image
+            imgtk = ImageTk.PhotoImage(image=img)
+            # Update the canvas with the new image
+            canvas.create_image(0, 0, anchor=tk.NW, image=imgtk)
+            root.update_idletasks()
+            root.update()
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -82,14 +88,14 @@ def html_stream(url):
     finally:
         # Clean up resources
         cap.release()
-        cv2.destroyAllWindows()
 
 # Test for camera stream from URL://localhost:8080/video_feed
-def test_camera(url):
-    success = search_html_stream(url)
+def test_camera(url, canvas, root):
+    success = search_html_stream(url, canvas, root)
     return success
+
 # OCR text detection from camera stream from URL://localhost:8080/video_feed
-def ocr_text_detection(url):
+def ocr_text_detection(url, canvas, root):
     # Create a VideoCapture object
     cap = cv2.VideoCapture(url)
     
@@ -114,8 +120,17 @@ def ocr_text_detection(url):
             ocr_text_buffer.append(text)
             if len(ocr_text_buffer) > 100:  # maintain the buffer size
                 ocr_text_buffer.pop(0)
-            
-            cv2.imshow('OCR Watch frame', frame)
+
+            # Convert the frame to RGB
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Convert the frame to a PIL image
+            img = Image.fromarray(frame)
+            # Convert the PIL image to an ImageTk image
+            imgtk = ImageTk.PhotoImage(image=img)
+            # Update the canvas with the new image
+            canvas.create_image(0, 0, anchor=tk.NW, image=imgtk)
+            root.update_idletasks()
+            root.update()
             
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -123,7 +138,6 @@ def ocr_text_detection(url):
     finally:
         # Clean up resources
         cap.release()
-        cv2.destroyAllWindows()
 
 # OCR text alarm detection ocr_text_alarm_words = ["599:","home theater", "smoke", "danger", "alert", "warning", "hazard", "emergency"]
 # Check if any of the alarm words are present in the text buffer
@@ -148,7 +162,7 @@ def ocr_text_alarm_detection(ocr_text_alarm_words, ocr_text_buffer):
 def create_main_window():
     root = tk.Tk()
     root.title("Camera Stream Test")
-    root.geometry("500x600")
+    root.geometry("800x600")
 
     main_frame = tk.Frame(root)
     main_frame.pack(fill=tk.BOTH, expand=True, pady=10)
@@ -163,6 +177,9 @@ def create_main_window():
     url_entry = tk.Entry(url_frame, width=40)
     url_entry.pack(side=tk.LEFT, padx=5)
     
+    canvas = tk.Canvas(main_frame, width=640, height=480)
+    canvas.pack()
+
     def test_camera_callback():
         url = url_entry.get().strip()
         if not url:
@@ -176,7 +193,7 @@ def create_main_window():
         handle_test_camera(url)
     
     def handle_test_camera(url):
-        success = test_camera(url)
+        success = test_camera(url, canvas, root)
         if success:
             tested_urls.append(url)
             messagebox.showinfo("Başarılı", "Kamera bağlantısı başarılı!")
@@ -188,7 +205,7 @@ def create_main_window():
         if not url:
             messagebox.showwarning("Uyarı", "Lütfen bir URL girin!")
             return
-        html_stream(url)
+        html_stream(url, canvas, root)
 
     def start_ocr_callback():
         url = url_entry.get().strip()
@@ -201,7 +218,7 @@ def create_main_window():
                 return
         
         # Run OCR directly
-        ocr_text_detection(url)
+        ocr_text_detection(url, canvas, root)
 
     def continuous_alarm_check():
         while True:
