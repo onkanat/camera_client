@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import tkinter as tk
 from tkinter import simpledialog
+import pytesseract
 
 tested_urls = []
 
@@ -48,6 +49,38 @@ def search_html_stream(url):
 def test_camera(url):
     success = search_html_stream(url)
     return success
+
+def ocr_text_detection(url):
+
+    # Create a VideoCapture object
+    cap = cv2.VideoCapture(url)
+    
+    # Check if camera opened successfully
+    if not cap.isOpened():
+        print("Unable to read camera feed")
+        return
+    
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            # Convert the frame to grayscale
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            
+            # Use pytesseract to do OCR on the frame
+            text = pytesseract.image_to_string(gray)
+            print(f"OCR Text: {text}")
+            
+            cv2.imshow('frame', frame)
+            
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+    finally:
+        # Clean up resources
+        cap.release()
+        cv2.destroyAllWindows()
 
 def creat_main_window():
     root = tk.Tk()
@@ -122,8 +155,45 @@ def creat_main_window():
         watch_label = tk.Label(watch_window, text="")
         watch_label.pack(pady=20)
 
+    def on_ocr_button_click():
+        def on_select(event):
+            selected_url = url_var.get()
+            url_entry.delete(0, tk.END)
+            url_entry.insert(0, selected_url)
+
+        dialog = tk.Toplevel(root)
+        dialog.title("Input")
+        dialog.geometry("300x200")
+
+        tk.Label(dialog, text="Enter the camera URL:").pack(pady=5)
+        
+        url_var = tk.StringVar()
+        url_entry = tk.Entry(dialog, textvariable=url_var, width=40)
+        url_entry.pack(pady=5)
+
+        if tested_urls:
+            tk.Label(dialog, text="Previously tested URLs:").pack(pady=5)
+            url_dropdown = tk.OptionMenu(dialog, url_var, *tested_urls, command=on_select)
+            url_dropdown.pack(pady=5)
+
+        def on_ok():
+            dialog.destroy()
+            url = url_var.get()
+            if url:
+                ocr_text_detection(url)
+
+        ok_button = tk.Button(dialog, text="OK", width=10, command=on_ok)
+        ok_button.pack(pady=20)
+
+        dialog.transient(root)
+        dialog.grab_set()
+        root.wait_window(dialog)
+
     test_button = tk.Button(root, text="Test Camera", width=15, command=on_test_button_click)
     test_button.pack(pady=20)
+
+    ocr_button = tk.Button(root, text="OCR Text Detection", width=20, command=on_ocr_button_click)
+    ocr_button.pack(pady=20)
 
     result_label = tk.Label(root, text="")
     result_label.pack(pady=20)
