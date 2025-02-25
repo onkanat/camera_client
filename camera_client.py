@@ -3,7 +3,6 @@
 # Author: @Hakan KILIÇASLAN - 2025
 # License: MIT
 
-
 import cv2
 import numpy as np
 import tkinter as tk
@@ -16,7 +15,105 @@ global tested_urls, ocr_text_buffer
 global ocr_text_alarm_words
 tested_urls = []
 ocr_text_buffer = [] # max buffer size = 100
-ocr_text_alarm_words = ["599:","home theater", "smoke", "danger", "alert", "warning", "hazard", "emergency"]
+ocr_text_alarm_words = []
+
+# TODO: Add a button for setting alarm words
+# TODO: Add a status label for showing the alarm status
+
+def create_main_window():
+    root = tk.Tk()
+    root.title("Camera Stream Test")
+    root.geometry("800x600")
+
+    main_frame = tk.Frame(root)
+    main_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+
+    test_frame = tk.Frame(main_frame)
+    test_frame.pack(fill=tk.BOTH, expand=True)
+
+    url_frame = tk.Frame(test_frame)
+    url_frame.pack(pady=10)
+    
+    tk.Label(url_frame, text="Kamera URL:").pack(side=tk.LEFT)
+    url_entry = tk.Entry(url_frame, width=40)
+    url_entry.pack(side=tk.LEFT, padx=5)
+    
+    canvas = tk.Canvas(main_frame, width=640, height=480)
+    canvas.pack()
+
+    def test_camera_callback():
+        url = url_entry.get().strip()
+        if not url:
+            messagebox.showwarning("Uyarı", "Lütfen bir URL girin!")
+            return
+        
+        if url in tested_urls:
+            messagebox.showinfo("Bilgi", "Bu URL zaten test edildi!")
+            return
+        
+        handle_test_camera(url)
+    
+    def handle_test_camera(url):
+        success = test_camera(url, canvas, root)
+        if success:
+            tested_urls.append(url)
+            messagebox.showinfo("Başarılı", "Kamera bağlantısı başarılı!")
+        else:
+            messagebox.showerror("Hata", "Kamera bağlantısı başarısız!")
+    
+    def watch_stream_callback():
+        url = url_entry.get().strip()
+        if not url:
+            messagebox.showwarning("Uyarı", "Lütfen bir URL girin!")
+            return
+        html_stream(url, canvas, root)
+
+    def start_ocr_callback():
+        url = url_entry.get().strip()
+        if not url:
+            messagebox.showwarning("Uyarı", "Lütfen bir URL girin!")
+            return
+        
+        if url not in tested_urls:
+            if not messagebox.askyesno("Uyarı", "Bu URL henüz test edilmedi. Devam etmek istiyor musunuz?"):
+                return
+        
+        # Run OCR directly
+        ocr_text_detection(url, canvas, root)
+
+    def continuous_alarm_check():
+        while True:
+            if ocr_text_alarm_detection(ocr_text_alarm_words, ocr_text_buffer):
+                root.after(0, lambda: status_label.config(text="ALARM! Tehlikeli kelime bulundu!"))
+            threading.Event().wait(1.0)  # Check every second
+
+    def clear_alarm_status():
+        status_label.config(text="Hazır")
+    
+    def reset_alarm_detection():
+        global ocr_text_buffer
+        ocr_text_buffer.clear()
+        status_label.config(text="Alarm durumu sıfırlandı.")
+
+    button_frame = tk.Frame(test_frame)
+    button_frame.pack(pady=5)
+    
+    tk.Button(button_frame, text="Test Et", command=test_camera_callback).pack(side=tk.LEFT, padx=5)
+    tk.Button(button_frame, text="OCR Başlat", command=start_ocr_callback).pack(side=tk.LEFT, padx=5)
+    tk.Button(button_frame, text="Watch Stream", command=watch_stream_callback).pack(side=tk.LEFT, padx=5)
+
+    button_frame_alarm = tk.Frame(test_frame)
+    button_frame_alarm.pack(pady=5)
+    
+    tk.Button(button_frame_alarm, text="Clear Alarm", command=clear_alarm_status).pack(pady=2)
+    tk.Button(button_frame_alarm, text="Reset Alarm", command=reset_alarm_detection).pack(pady=2)
+    
+    status_frame = tk.Frame(main_frame)
+    status_frame.pack(fill=tk.X, pady=10)
+    status_label = tk.Label(status_frame, text="Hazır", bd=1, relief=tk.SUNKEN, anchor=tk.W)
+    status_label.pack(fill=tk.X)
+
+    root.mainloop()
 
 # Test for camera  stream from URL://localhost:8080/video_feed
 def search_html_stream(url, canvas, root):
@@ -153,108 +250,18 @@ def ocr_text_alarm_detection(ocr_text_alarm_words, ocr_text_buffer):
                 return True
     return False
 
-# Create a main window with a URL entry and buttons for testing camera, watching stream, and starting OCR
-# FIXME: CV2 frame not opening in the main windows frame and not running thread with cv2.imshow function
-# frame not opening in the main window frame
-# TODO: Add a button for setting alarm words
-# TODO: Add a status label for showing the alarm status
-
-def create_main_window():
-    root = tk.Tk()
-    root.title("Camera Stream Test")
-    root.geometry("800x600")
-
-    main_frame = tk.Frame(root)
-    main_frame.pack(fill=tk.BOTH, expand=True, pady=10)
-
-    test_frame = tk.Frame(main_frame)
-    test_frame.pack(fill=tk.BOTH, expand=True)
-
-    url_frame = tk.Frame(test_frame)
-    url_frame.pack(pady=10)
-    
-    tk.Label(url_frame, text="Kamera URL:").pack(side=tk.LEFT)
-    url_entry = tk.Entry(url_frame, width=40)
-    url_entry.pack(side=tk.LEFT, padx=5)
-    
-    canvas = tk.Canvas(main_frame, width=640, height=480)
-    canvas.pack()
-
-    def test_camera_callback():
-        url = url_entry.get().strip()
-        if not url:
-            messagebox.showwarning("Uyarı", "Lütfen bir URL girin!")
-            return
-        
-        if url in tested_urls:
-            messagebox.showinfo("Bilgi", "Bu URL zaten test edildi!")
-            return
-        
-        handle_test_camera(url)
-    
-    def handle_test_camera(url):
-        success = test_camera(url, canvas, root)
-        if success:
-            tested_urls.append(url)
-            messagebox.showinfo("Başarılı", "Kamera bağlantısı başarılı!")
-        else:
-            messagebox.showerror("Hata", "Kamera bağlantısı başarısız!")
-    
-    def watch_stream_callback():
-        url = url_entry.get().strip()
-        if not url:
-            messagebox.showwarning("Uyarı", "Lütfen bir URL girin!")
-            return
-        html_stream(url, canvas, root)
-
-    def start_ocr_callback():
-        url = url_entry.get().strip()
-        if not url:
-            messagebox.showwarning("Uyarı", "Lütfen bir URL girin!")
-            return
-        
-        if url not in tested_urls:
-            if not messagebox.askyesno("Uyarı", "Bu URL henüz test edilmedi. Devam etmek istiyor musunuz?"):
-                return
-        
-        # Run OCR directly
-        ocr_text_detection(url, canvas, root)
-
-    def continuous_alarm_check():
-        while True:
-            if ocr_text_alarm_detection(ocr_text_alarm_words, ocr_text_buffer):
-                root.after(0, lambda: status_label.config(text="ALARM! Tehlikeli kelime bulundu!"))
-            threading.Event().wait(1.0)  # Check every second
-
-    def clear_alarm_status():
-        status_label.config(text="Hazır")
-    
-    def reset_alarm_detection():
-        global ocr_text_buffer
-        ocr_text_buffer.clear()
-        status_label.config(text="Alarm durumu sıfırlandı.")
-
-    button_frame = tk.Frame(test_frame)
-    button_frame.pack(pady=5)
-    
-    tk.Button(button_frame, text="Test Et", command=test_camera_callback).pack(side=tk.LEFT, padx=5)
-    tk.Button(button_frame, text="OCR Başlat", command=start_ocr_callback).pack(side=tk.LEFT, padx=5)
-    tk.Button(button_frame, text="Watch Stream", command=watch_stream_callback).pack(side=tk.LEFT, padx=5)
-
-    button_frame_alarm = tk.Frame(test_frame)
-    button_frame_alarm.pack(pady=5)
-    
-    tk.Button(button_frame_alarm, text="Clear Alarm", command=clear_alarm_status).pack(pady=2)
-    tk.Button(button_frame_alarm, text="Reset Alarm", command=reset_alarm_detection).pack(pady=2)
-    
-    status_frame = tk.Frame(main_frame)
-    status_frame.pack(fill=tk.X, pady=10)
-    status_label = tk.Label(status_frame, text="Hazır", bd=1, relief=tk.SUNKEN, anchor=tk.W)
-    status_label.pack(fill=tk.X)
-
-    root.mainloop()
+# Load the alarm words from a file and add to ocr_text_alarm_words
+def load_alarm_words(filename="alarm_words.txt"):
+    global ocr_text_alarm_words
+    try:
+        with open(filename, 'r') as f:
+            ocr_text_alarm_words = [word.strip() for word in f.readlines() if word.strip()]
+    except FileNotFoundError:
+        # Default list if file not found
+        ocr_text_alarm_words = ["599:", "home theater", "smoke", "danger", "alert", "warning", "hazard", "emergency"]
 
 
 if __name__ == "__main__":
+    load_alarm_words()
     create_main_window()
 

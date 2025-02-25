@@ -12,4 +12,12 @@ pip install --upgrade pip
 # Install required packages
 pip install -r requirements.txt
 
-echo "Virtual environment setup completed!"
+# Install system dependencies
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    sudo apt-get update
+    sudo apt-get install -y tesseract-ocr python3-tk
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    brew install tesseract python-tk
+fi
+
+echo "Kurulum tamamlandı!"
