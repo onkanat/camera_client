@@ -8,3 +8,5 @@ emergency
 599:home theater
 794:
 594:
+laptap
+laptop computer
