@@ -19,6 +19,9 @@ from tkinter import filedialog
 import json
 from collections import deque
 from threading import Lock
+from ui.shortcuts import ShortcutManager
+from ui.help import HelpWindow
+from ui.theme import ThemeManager
 
 global tested_urls, ocr_text_buffer
 global ocr_text_alarm_words
@@ -29,18 +32,6 @@ ocr_text_buffer = [] # max buffer size = 100
 ocr_text_alarm_words = []
 save_ocr_text = False
 video_recorder = None
-
-# Suggested improvements:
-# 1. Add error handling for camera connection failures
-# 2. Add logging functionality for OCR and alarm events
-# 3. Add functionality to save detected text to a file
-# 4. Add configuration file support for settings
-# 5. Add ability to export/import alarm word lists
-# 6. Add timestamp to OCR detections
-# 7. Add image preprocessing options for better OCR accuracy
-# 8. Add option to record video when alarms are triggered
-# 9. Add support for multiple camera streams
-# 10. Add authentication for camera streams
 
 class Config:
     def __init__(self):
@@ -288,9 +279,12 @@ def create_main_window():
     global video_recorder  # Global değişkeni fonksiyon içinde kullanabilmek için
     
     root = tk.Tk()
-    root.title("Camera Stream Test")
-    root.geometry("800x600")
+    root.title("Camera Stream Monitor")
+    root.geometry("1024x768")
 
+    # Shortcuts manager'ı başlat
+    shortcuts = ShortcutManager(root)
+    
     main_frame = tk.Frame(root)
     main_frame.pack(fill=tk.BOTH, expand=True, pady=1)
 
@@ -559,6 +553,52 @@ def create_main_window():
     alarm_thread = threading.Thread(target=continuous_alarm_check, daemon=True)
     alarm_thread.start()
 
+    # Kısayol tuşlarını kaydet
+    shortcuts.register_shortcut("Control-t", lambda: test_camera_callback())
+    shortcuts.register_shortcut("Control-o", lambda: start_ocr_callback())
+    shortcuts.register_shortcut("Control-s", lambda: stop_all_processing())
+    shortcuts.register_shortcut("Control-r", lambda: toggle_recording())
+    shortcuts.register_shortcut("Control-l", lambda: toggle_theme())
+    
+    # Help menüsü ekle
+    menu_bar = tk.Menu(root)
+    root.config(menu=menu_bar)
+    
+    help_menu = tk.Menu(menu_bar, tearoff=0)
+    menu_bar.add_cascade(label="Yardım", menu=help_menu)
+    help_menu.add_command(label="Klavye Kısayolları (Ctrl+H)", 
+                         command=lambda: HelpWindow(root))
+    
+    def toggle_theme():
+        """Tema değiştirme fonksiyonu"""
+        current_theme = ThemeManager().current_theme
+        new_theme = "dark" if current_theme == "light" else "light"
+        ThemeManager().apply_theme(root, new_theme)
+    
+    def stop_all_processing():
+        """Tüm işlemleri durdur"""
+        if video_recorder and video_recorder.recording:
+            video_recorder.stop_recording()
+        # Diğer işlemleri durdur...
+        status_label.config(text="Tüm işlemler durduruldu")
+    
+    def toggle_recording():
+        """Kayıt durumunu değiştir"""
+        if video_recorder:
+            if video_recorder.recording:
+                video_recorder.stop_recording()
+                recording_status.config(text="Not Recording", fg="gray")
+            else:
+                video_recorder.start_recording()
+                recording_status.config(text="Recording...", fg="red")
+    
+    # Button frame'e Help butonu ekle
+    tk.Button(button_frame, text="Yardım", 
+             command=lambda: HelpWindow(root)).pack(side=tk.LEFT, padx=5)
+    
+    # Status bar'a kısayol bilgisi ekle
+    status_label.config(text="Hazır (Ctrl+H için Yardım)")
+
     root.mainloop()
 
 # Test for camera  stream from URL://localhost:8080/video_feed
@@ -606,7 +646,7 @@ def search_html_stream(url, canvas, root):
         return False
     finally:
         if 'cap' in locals():
-            cap.release()
+            cap.release() # type: ignore
 
 # Watch the camera stream from URL://localhost:8080/video_feed
 def html_stream(url, canvas, root):
@@ -718,7 +758,7 @@ def ocr_text_detection(url, canvas, root):
     except Exception as e:
         logging.error(f"Error in OCR detection: {str(e)}")
     finally:
-        cap.release()
+        cap.release() # type: ignore
         logging.info("OCR detection stopped")
 
 # OCR text alarm detection ocr_text_alarm_words = ["599:","home theater", "smoke", "danger", "alert", "warning", "hazard", "emergency"]
