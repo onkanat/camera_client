@@ -2,6 +2,7 @@ opencv-python>=4.5.0
 numpy>=1.19.0
 pytesseract>=0.3.13
 Pillow>=8.0.0
+pyyaml>=5.4.0
 tkinter>=8.6.0  # GUI için gerekli
 python-opencv>=4.5.0  # Video işleme için
 threading2>=0.3.0  # Alarm kontrolü için

@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+venv/
 env/
 build/
 develop-eggs/
@@ -20,9 +21,21 @@ var/
 .installed.cfg
 *.egg
 
-# Video files
+# Application specific
+detected_texts/*
+!detected_texts/.gitkeep
+logs/*
+!logs/.gitkeep
+recordings/*
+!recordings/.gitkeep
 *.avi
 *.mp4
+*.log
+*.json
+
+# Config & Data
+config.yaml
+alarm_words.txt
 
 # IDE specific files
 .idea/
