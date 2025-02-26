@@ -6,7 +6,7 @@
 import cv2
 import numpy as np
 import tkinter as tk
-from tkinter import simpledialog, messagebox
+from tkinter import messagebox
 from PIL import Image, ImageTk
 import pytesseract
 import threading
@@ -15,15 +15,10 @@ from datetime import datetime
 import os
 import time
 import yaml
-from pathlib import Path
 from tkinter import filedialog
 import json
-import math
 from collections import deque
 from threading import Lock
-from ui.styles import StyleManager
-from ui.widgets import LabeledEntry, StatusBar, SearchableTextFrame, ToolTip, ProgressSpinner, KeyboardShortcuts
-from utils.helpers import get_videowriter_fourcc
 
 global tested_urls, ocr_text_buffer
 global ocr_text_alarm_words
@@ -250,7 +245,7 @@ class VideoRecorder:
                 f'alarm_recording_{timestamp}.avi'
             )
             
-            fourcc = get_videowriter_fourcc('X', 'V', 'I', 'D')
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')  # type: ignore # XVID codec kullan
             self.writer = cv2.VideoWriter(
                 filename,
                 fourcc,
@@ -288,199 +283,6 @@ class VideoRecorder:
                 self.writer.release()
                 self.writer = None
         logging.info("Stopped recording")
-
-class ThemeManager:
-    LIGHT_THEME = {
-        'bg': '#FFFFFF',
-        'fg': '#000000',
-        'secondary_text': '#666666',
-        'accent': '#007AFF',
-        'error': '#FF3B30',
-        'button_bg': '#E0E0E0',
-        'canvas_bg': '#F5F5F5',
-        'success': '#34C759'
-    }
-    
-    DARK_THEME = {
-        'bg': '#1C1C1E',
-        'fg': '#FFFFFF',
-        'secondary_text': '#EBEBF5',
-        'accent': '#0A84FF',
-        'error': '#FF453A',
-        'button_bg': '#3A3A3C',
-        'canvas_bg': '#2C2C2E',
-        'success': '#30D158'
-    }
-
-    @staticmethod
-    def apply_theme(root, is_dark=False):
-        theme = ThemeManager.DARK_THEME if is_dark else ThemeManager.LIGHT_THEME
-        style = ttk.Style()
-        
-        # Configure ttk styles
-        style.configure('Main.TFrame', background=theme['bg'])
-        style.configure('Main.TLabel', background=theme['bg'], foreground=theme['fg'])
-        style.configure('Main.TButton', 
-                       background=theme['button_bg'],
-                       foreground=theme['fg'],
-                       padding=5)
-        style.configure('Accent.TButton',
-                       background=theme['accent'],
-                       foreground=theme['fg'],
-                       padding=5)
-        style.configure('Error.TButton',
-                       background=theme['error'],
-                       foreground=theme['fg'],
-                       padding=5)
-        
-        # Apply theme to root and main widgets
-        root.configure(bg=theme['bg'])
-        return theme
-
-def create_main_window():
-    root = tk.Tk()
-    root.title("Camera Stream Monitor")
-    root.geometry("1024x768")
-    
-    # Initialize keyboard shortcuts and components
-    shortcuts = KeyboardShortcuts(root)
-    current_theme = ThemeManager.apply_theme(root, is_dark=False)
-    StyleManager.configure_styles(current_theme)
-    
-    # Create frames and components
-    main_container = ttk.Frame(root, style='Main.TFrame')
-    main_container.grid(row=0, column=0, sticky='nsew')
-    main_container.grid_columnconfigure(0, weight=1)
-    
-    # Create and store component references
-    header_frame, url_entry = create_header_frame(main_container, current_theme)
-    camera_frame, canvas = create_camera_frame(main_container, current_theme)
-    controls_frame, control_buttons = create_controls_frame(main_container, current_theme)
-    ocr_frame, searchable_text = create_ocr_frame(main_container, current_theme)
-    status_bar = create_status_bar(main_container, current_theme)
-    
-    # Pack frames
-    header_frame.grid(row=0, column=0, sticky='ew', padx=10, pady=5)
-    camera_frame.grid(row=1, column=0, sticky='nsew', padx=10)
-    controls_frame.grid(row=2, column=0, sticky='ew', padx=10, pady=5)
-    ocr_frame.grid(row=3, column=0, sticky='ew', padx=10, pady=5)
-    status_bar.grid(row=4, column=0, sticky='ew', padx=10, pady=5)
-    
-    # Configure grid weights
-    main_container.grid_rowconfigure(1, weight=3)
-    main_container.grid_rowconfigure(3, weight=1)
-    
-    # Add keyboard shortcuts
-    shortcuts.add_shortcut("Control-t", control_buttons['test'].invoke)
-    shortcuts.add_shortcut("Control-o", control_buttons['ocr'].invoke)
-    shortcuts.add_shortcut("Control-s", control_buttons['stop'].invoke)
-    shortcuts.add_shortcut("Control-q", root.quit)
-    
-    return ComponentRefs(
-        root=root,
-        url_entry=url_entry,
-        canvas=canvas,
-        searchable_text=searchable_text,
-        status_bar=status_bar,
-        control_buttons=control_buttons
-    )
-
-class ComponentRefs:
-    """Store references to GUI components"""
-    def __init__(self, root, url_entry, canvas, searchable_text, status_bar, control_buttons):
-        self.root = root
-        self.url_entry = url_entry
-        self.canvas = canvas
-        self.searchable_text = searchable_text
-        self.status_bar = status_bar
-        self.control_buttons = control_buttons
-
-def create_header_frame(parent, theme):
-    frame = ttk.Frame(parent, style=StyleManager.get_widget_style('frame'))
-    frame.grid_columnconfigure(1, weight=1)
-    
-    url_entry = LabeledEntry(frame, "Camera URL:", width=40)
-    url_entry.grid(row=0, column=0, columnspan=2, sticky='ew', 
-                  padx=StyleManager.PADDING['default'], 
-                  pady=StyleManager.PADDING['default'])
-    url_entry.entry.insert(0, config.config['camera']['default_url'])
-    
-    theme_btn = ttk.Button(frame, text="Toggle Theme",
-                          style=StyleManager.get_widget_style('button'),
-                          command=lambda: ThemeManager.apply_theme(
-                              parent.winfo_toplevel(),
-                              is_dark=theme==ThemeManager.LIGHT_THEME))
-    theme_btn.grid(row=0, column=2, padx=StyleManager.PADDING['default'])
-    
-    return frame, url_entry
-
-def create_camera_frame(parent, theme):
-    frame = ttk.Frame(parent, style='Main.TFrame')
-    
-    # Camera canvas with zoom controls
-    canvas = tk.Canvas(frame, 
-                      width=config.config['camera']['frame_width'],
-                      height=config.config['camera']['frame_height'],
-                      bg=theme['canvas_bg'])
-    canvas.grid(row=0, column=0, sticky='nsew')
-    
-    # Add zoom controls
-    zoom_frame = ttk.Frame(frame, style='Main.TFrame')
-    zoom_frame.grid(row=1, column=0, sticky='e', padx=5, pady=5)
-    
-    ttk.Button(zoom_frame, text="Zoom In", style='Main.TButton').pack(side=tk.LEFT, padx=2)
-    ttk.Button(zoom_frame, text="Zoom Out", style='Main.TButton').pack(side=tk.LEFT, padx=2)
-    ttk.Button(zoom_frame, text="Reset", style='Main.TButton').pack(side=tk.LEFT, padx=2)
-    
-    return frame, canvas
-
-def create_controls_frame(parent, theme):
-    frame = ttk.Frame(parent, style='Main.TFrame')
-    frame.grid_columnconfigure(0, weight=1)
-    
-    buttons_frame = ttk.Frame(frame, style='Main.TFrame')
-    buttons_frame.grid(row=0, column=0, pady=5)
-    
-    buttons = {}
-    
-    buttons['test'] = ttk.Button(buttons_frame, text="Test Camera", 
-                                style='Main.TButton',
-                                command=lambda: test_camera_callback())
-    buttons['test'].pack(side=tk.LEFT, padx=5)
-    
-    buttons['ocr'] = ttk.Button(buttons_frame, text="Start OCR",
-                               style='Accent.TButton',
-                               command=lambda: start_ocr_callback())
-    buttons['ocr'].pack(side=tk.LEFT, padx=5)
-    
-    buttons['stop'] = ttk.Button(buttons_frame, text="Stop",
-                                style='Error.TButton',
-                                command=lambda: stop_processing())
-    buttons['stop'].pack(side=tk.LEFT, padx=5)
-    
-    return frame, buttons
-
-def create_ocr_frame(parent, theme):
-    frame = ttk.Frame(parent, style=StyleManager.get_widget_style('frame'))
-    frame.grid_columnconfigure(0, weight=1)
-    
-    searchable_text = SearchableTextFrame(frame, height=10)
-    searchable_text.grid(row=0, column=0, sticky='nsew',
-                        padx=StyleManager.PADDING['default'],
-                        pady=StyleManager.PADDING['default'])
-    
-    return frame, searchable_text
-
-def create_status_bar(parent, theme):
-    frame = ttk.Frame(parent, style='Main.TFrame')
-    
-    status_label = ttk.Label(frame, text="Ready", style='Main.TLabel')
-    status_label.pack(side=tk.LEFT, padx=5)
-    
-    recording_label = ttk.Label(frame, text="Not Recording", style='Main.TLabel')
-    recording_label.pack(side=tk.RIGHT, padx=5)
-    
-    return frame
 
 def create_main_window():
     global video_recorder  # Global değişkeni fonksiyon içinde kullanabilmek için
@@ -895,14 +697,6 @@ def ocr_text_detection(url, canvas, root):
                 if len(ocr_text_buffer) > config.config['ocr']['buffer_size']:
                     ocr_text_buffer.pop(0)
                 
-                # Use tags for different types of text
-                tags = ()
-                if any(word.lower() in text.lower() for word in ocr_text_alarm_words):
-                    tags = ('alarm',)
-                
-                searchable_text.append_text(str(detection), tags)
-                searchable_text.text.tag_config('alarm', foreground='red')
-                
                 if save_ocr_text:
                     save_detected_text(text, detection.timestamp.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3])
                 logging.info(f"OCR detected: {str(detection)}")
@@ -1005,17 +799,11 @@ def import_alarm_words(filename=None):
             logging.error(f"Failed to import alarm words: {str(e)}")
             messagebox.showerror("Hata", f"İçe aktarma başarısız: {str(e)}")
             return False
+ 
 
 if __name__ == "__main__":
     setup_logging()
     load_alarm_words()
     logging.info("Application starting...")
-    
-    # Import ttk after defining classes
-    from tkinter import ttk
-    
-    component_refs = create_main_window()
-    if component_refs and component_refs.root:
-        component_refs.root.mainloop()
-    
+    create_main_window()
     logging.info("Application shutting down...")
